@@ -11,9 +11,6 @@ HTTP_TIMEOUT = (
     10  # without a timeout a stalled inverter connection blocks the loop forever
 )
 CONNECT_TIMEOUT = 10
-FLUSH_AGE = (
-    300  # flush a partial buffer after this many seconds to limit loss on SIGKILL/crash
-)
 DB_CONNINFO = (
     "dbname='home' user='electricity_stats_collector' connect_timeout=%d"
     % CONNECT_TIMEOUT
@@ -107,22 +104,18 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, exit_handler)
     signal.signal(signal.SIGTERM, exit_handler)
 
-    last_flush = time.monotonic()
     while True:
         try:
             fetch()
         except Exception as e:
             logging.error(f"{__file__}: Error fetching data\n{e}")
 
-        if chunk and (
-            len(chunk) >= CHUNK_SIZE or time.monotonic() - last_flush >= FLUSH_AGE
-        ):
+        if len(chunk) >= CHUNK_SIZE:
             try:
                 insert()
             except Exception as e:
                 logging.error("insert failed: %s", e)
             else:
                 chunk = []
-            last_flush = time.monotonic()
 
         time.sleep(INTERVAL)
